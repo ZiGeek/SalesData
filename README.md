@@ -1,5 +1,13 @@
 # SalesData
-Walmart Sales Data Analysis With MySQLWorkbench
-This project aims to explore the Walmart Sales data to understand top performing branches and products, 
-sales trend of of different products,customer behaviour. 
-The aims is to study how sales strategies can be improved and optimized.
+
+## 简介
+这个项目旨在探索沃尔玛销售数据，以了解销售业绩最好的分支机构和产品、不同产品的销售趋势以及客户行为。该项目的目标是研究如何改进和优化销售策略。
+
+## 项目目的
+
+本项目的主要目标是通过分析沃尔玛的销售数据，深入了解不同因素对各分支机构销售的影响。
+
+## 数据概况
+
+该数据集来自[Kaggle沃尔玛销售预测竞赛](https://www.kaggle.com/c/walmart-recruiting-store-sales-forecasting)。该数据集包含来自沃尔玛三个不同分支机构（分别位于曼德勒、仰光和内比都）的销售交易数据。数据包含17列和1000行：
+
