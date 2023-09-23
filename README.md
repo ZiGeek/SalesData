@@ -1,4 +1,4 @@
-# SalesData
+# 沃尔玛销售数据SQL
 
 ## 简介
 这个项目旨在探索沃尔玛销售数据，以了解销售业绩最好的分支机构和产品、不同产品的销售趋势以及客户行为。该项目的目标是研究如何改进和优化销售策略。
@@ -64,7 +64,338 @@
 
 3. **探索性数据分析（EDA）：** 进行探索性数据分析以回答列出的问题和项目的目标。
 
-4. **结论：** 
+
+## Code
+
+```sql
 
 
+-- 创建数据库
+CREATE DATABASE IF NOT EXISTS walmartSales;
 
+
+-- 创建表格
+CREATE TABLE IF NOT EXISTS sales(
+	invoice_id VARCHAR(30) NOT NULL PRIMARY KEY,
+    branch VARCHAR(5) NOT NULL,
+    city VARCHAR(30) NOT NULL,
+    customer_type VARCHAR(30) NOT NULL,
+    gender VARCHAR(30) NOT NULL,
+    product_line VARCHAR(100) NOT NULL,
+    unit_price DECIMAL(10,2) NOT NULL,
+    quantity INT NOT NULL,
+    tax_pct FLOAT(6,4) NOT NULL,
+    total DECIMAL(12, 4) NOT NULL,
+    date DATETIME NOT NULL,
+    time TIME NOT NULL,
+    payment VARCHAR(15) NOT NULL,
+    cogs DECIMAL(10,2) NOT NULL,
+    gross_margin_pct FLOAT(11,9),
+    gross_income DECIMAL(12, 4),
+    rating FLOAT(2, 1)
+);
+
+-- 数据清洗
+SELECT
+	*
+FROM sales;
+
+-- 添加 time_of_day 列
+SELECT
+	time,
+	(CASE
+		WHEN `time` BETWEEN "00:00:00" AND "12:00:00" THEN "早上"
+        WHEN `time` BETWEEN "12:01:00" AND "16:00:00" THEN "下午"
+        ELSE "晚上"
+    END) AS time_of_day
+FROM sales;
+
+-- 为表格添加 time_of_day 列
+ALTER TABLE sales ADD COLUMN time_of_day VARCHAR(20);
+
+-- 要使此代码工作，请关闭更新安全模式
+-- 编辑 > 首选项 > SQL 编辑器 > 向下滚动并切换安全模式
+-- 重新连接到 MySQL：查询 > 重新连接到服务器
+-- 更新 time_of_day 列
+UPDATE sales
+SET time_of_day = (
+	CASE
+		WHEN `time` BETWEEN "00:00:00" AND "12:00:00" THEN "早上"
+        WHEN `time` BETWEEN "12:01:00" AND "16:00:00" THEN "下午"
+        ELSE "晚上"
+    END
+);
+
+-- 添加 day_name 列
+SELECT
+	date,
+	DAYNAME(date)
+FROM sales;
+
+-- 为表格添加 day_name 列
+ALTER TABLE sales ADD COLUMN day_name VARCHAR(10);
+
+-- 更新 day_name 列
+UPDATE sales
+SET day_name = DAYNAME(date);
+
+-- 添加 month_name 列
+SELECT
+	date,
+	MONTHNAME(date)
+FROM sales;
+
+-- 为表格添加 month_name 列
+ALTER TABLE sales ADD COLUMN month_name VARCHAR(10);
+
+-- 更新 month_name 列
+UPDATE sales
+SET month_name = MONTHNAME(date);
+
+-- --------------------------------------------------------------------
+
+-- 数据包含多少个不同的城市？
+SELECT 
+	DISTINCT city
+FROM sales;
+
+-- 每个分店位于哪个城市？
+SELECT 
+	DISTINCT city,
+    branch
+FROM sales;
+
+-- --------------------------------------------------------------------
+-- ---------------------------- 产品查询 ------------------------------
+-- --------------------------------------------------------------------
+
+-- 数据包含多少个不同的产品线？
+SELECT
+	DISTINCT product_line
+FROM sales;
+
+-- 最畅销的产品线是什么？
+SELECT
+	SUM(quantity) as 销售数量,
+    product_line as 产品线
+FROM sales
+GROUP BY product_line
+ORDER BY 销售数量 DESC;
+
+-- 每个产品线的总收入是多少？
+SELECT
+	product_line as 产品线,
+	SUM(total) as 总收入
+FROM sales
+GROUP BY product_line
+ORDER BY 总收入 DESC;
+
+-- 每个月的总收入是多少？
+SELECT
+	month_name AS 月份,
+	SUM(total) AS 总收入
+FROM sales
+GROUP BY month_name 
+ORDER BY 总收入 DESC;
+
+-- 哪个月的成本最高？
+SELECT
+	month_name AS 月份,
+	SUM(cogs) AS 成本
+FROM sales
+GROUP BY month_name 
+ORDER BY 成本 DESC;
+
+-- 每个产品线的总增值税是多少？
+SELECT
+	product_line as 产品线,
+	AVG(tax_pct) as 平均增值税率
+FROM sales
+GROUP BY product_line
+ORDER BY 平均增值税率 DESC;
+
+-- 销售收入最高的城市是哪个？
+SELECT
+	branch as 分店,
+	city as 城市,
+	SUM(total) AS 总收入
+FROM sales
+GROUP BY city, branch 
+ORDER BY 总收入 DESC;
+
+
+-- 哪个产品线的增值税最高？
+SELECT
+	product_line as 产品线,
+	AVG(tax_pct) as 平均增值税率
+FROM sales
+GROUP BY product_line
+ORDER BY 平均增值税率 DESC;
+
+-- 获取每个产品线并为每个产品线添加一个列，显示“Good”或“Bad”。
+-- 如果销售数量高于平均销售数量，则为“Good”。
+
+-- 计算平均销售数量
+SELECT 
+	AVG(quantity) AS 平均销售数量
+FROM sales;
+
+-- 添加 "remark" 列，根据平均销售数量判断产品线好坏
+SELECT
+	product_line as 产品线,
+	CASE
+		WHEN AVG(quantity) > 6 THEN "Good"
+        ELSE "Bad"
+    END AS 评价
+FROM sales
+GROUP BY product_line;
+
+-- 哪个分店销售的产品数量高于平均销售数量？
+SELECT 
+	branch as 分店, 
+    SUM(quantity) AS 销售数量
+FROM sales
+GROUP BY branch
+HAVING 销售数量 > (SELECT AVG(quantity) FROM sales);
+
+-- 按性别分组，找出每种性别最常见的产品线
+SELECT
+	gender as 性别,
+    product_line as 产品线,
+    COUNT(gender) AS 总数
+FROM sales
+GROUP BY gender, product_line
+ORDER BY 总数 DESC;
+
+-- 计算每个产品线的平均评分
+SELECT
+	ROUND(AVG(rating), 2) as 平均评分,
+    product_line as 产品线
+FROM sales
+GROUP BY product_line
+ORDER BY 平均评分 DESC;
+
+-- --------------------------------------------------------------------
+-- --------------------------------------------------------------------
+
+-- --------------------------------------------------------------------
+-- -------------------------- 顾客 -------------------------------
+-- --------------------------------------------------------------------
+
+-- 数据中有多少种独特的顾客类型？
+SELECT
+	DISTINCT customer_type as 顾客类型
+FROM sales;
+
+-- 数据中有多少种独特的付款方法？
+SELECT
+	DISTINCT payment as 付款方式
+FROM sales;
+
+-- 最常见的顾客类型是什么？
+SELECT
+	customer_type as 顾客类型,
+	count(*) as 数量
+FROM sales
+GROUP BY customer_type
+ORDER BY 数量 DESC;
+
+-- 哪种顾客类型购买最多？
+SELECT
+	customer_type as 顾客类型,
+    COUNT(*) as 购买次数
+FROM sales
+GROUP BY customer_type;
+
+-- 大多数顾客的性别是什么？
+SELECT
+	gender as 性别,
+	COUNT(*) as 性别数量
+FROM sales
+GROUP BY gender
+ORDER BY 性别数量 DESC;
+
+-- 不同分店的性别分布如何？
+SELECT
+	gender as 性别,
+	COUNT(*) as 性别数量
+FROM sales
+WHERE branch = "C"
+GROUP BY gender
+ORDER BY 性别数量 DESC;
+
+-- 哪个时间段顾客评分最高？
+SELECT
+	time_of_day as 时间段,
+	AVG(rating) AS 平均评分
+FROM sales
+GROUP BY time_of_day
+ORDER BY 平均评分 DESC;
+
+-- 不同分店的不同时间段顾客评分如何？
+SELECT
+	time_of_day as 时间段,
+	AVG(rating) AS 平均评分
+FROM sales
+WHERE branch = "A"
+GROUP BY time_of_day
+ORDER BY 平均评分 DESC;
+
+-- 一周中哪一天的评分平均值最高？
+SELECT
+	day_name as 星期几,
+	AVG(rating) AS 平均评分
+FROM sales
+GROUP BY day_name 
+ORDER BY 平均评分 DESC;
+
+-- 不同分店的一周中哪一天的销售次数最多？
+SELECT 
+	day_name as 星期几,
+	COUNT(day_name) as 销售次数
+FROM sales
+WHERE branch = "C"
+GROUP BY day_name
+ORDER BY 销售次数 DESC;
+
+-- --------------------------------------------------------------------
+-- --------------------------------------------------------------------
+
+-- --------------------------------------------------------------------
+-- ---------------------------- 销售 ---------------------------------
+-- --------------------------------------------------------------------
+
+-- 每个时间段在星期日的销售次数是多少？
+SELECT
+	time_of_day as 时间段,
+	COUNT(*) as 销售次数
+FROM sales
+WHERE day_name = "星期日"
+GROUP BY time_of_day 
+ORDER BY 销售次数 DESC;
+
+-- 哪种顾客类型带来最高的销售收入？
+SELECT
+	customer_type as 顾客类型,
+	SUM(total) AS 总销售收入
+FROM sales
+GROUP BY customer_type
+ORDER BY 总销售收入 DESC;
+
+-- 哪个城市的平均增值税率最高？
+SELECT
+	city as 城市,
+    ROUND(AVG(tax_pct), 2) AS 平均增值税率
+FROM sales
+GROUP BY city 
+ORDER BY 平均增值税率 DESC;
+
+-- 哪种顾客类型支付的增值税最多？
+SELECT
+	customer_type as 顾客类型,
+	AVG(tax_pct) AS 总增值税
+FROM sales
+GROUP BY customer_type
+ORDER BY 总增值税;
+
+```
